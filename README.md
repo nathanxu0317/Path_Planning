@@ -65,6 +65,56 @@ the path has processed since last time.
 
 2. There will be some latency between the simulator running and the path planner returning a path, with optimized code usually its not very long maybe just 1-3 time steps. During this delay the simulator will continue using points that it was last given, because of this its a good idea to store the last points you have used so you can have a smooth transition. previous_path_x, and previous_path_y can be helpful for this transition since they show the last points given to the simulator controller with the processed points already removed. You would either return a path that extends this previous path or make sure to create a new path that has a smooth transition with this last path.
 
+## Behavior Plan
+
+The behavior planner is impemented in Trajectory::behavior_plan function.
+The selected states in the finite state machine are car_s, car_d, car_spd, sensor_fusion, tgt_lane, tgt_spd.
+First it will analyze the environment:
+If there is no car in certain range ahead of current lane, then front clear.
+If in left lane, there is no car within certain range both before and after current car's longitudinal postion, then left clear.
+If in right lane, there is no car within certain range both before and after current car's longitudinal postion, then right clear.
+
+The behavior planning then works as follows:
+	if (front_clear)
+	{
+		tgt_spd = spd_limit;
+		tgt_lane = cur_lane;
+	}
+	else if (!left_clear&&!right_clear)
+	{
+		tgt_spd = ahead_spd;
+		tgt_lane = cur_lane;
+	}
+	else if (left_clear)
+	{
+		tgt_spd = spd_limit;
+		tgt_lane = cur_lane-1;
+	}
+	else if (right_clear)
+	{
+		tgt_spd = spd_limit;
+		tgt_lane = cur_lane+1;
+	}
+   
+## Trajectory Calculation
+
+This logic is implemented in function Trajectory::calc_trajectory.
+
+In the map data, there is huge interval between way points, this is why even for just following the road without changing lanes, we still need a curve fitting or interpolation tool, here we use the spline interpolation tool. 
+
+After behavior plan, we have target speed and target lane, then we use last 2 points of previous planned path, and another 2~3 points in target lane with the same relatively large distance interval, to generate the spline curve. This curve already take changing lane into consideration. 
+
+To be noted: only the last one point of previous path is not enough, because previous path will not get enough weights, when changing lanes, the new spline curve will change direction abruptly.
+
+With target speed and stored current speed, we can calculate all the x value of the path points in car local coordinates, then use existed spline curve for interpolation to get y value. After that, all these path points can be transferred to global coordinates and send to simulator.
+
+To be noted:
+1. Acceleration limit should be taken into consideration.
+2. According to experiments, the simulator can only take 2~3 path points in every loop, so the car_speed should not be used to update speed in next loop, instead, the speed of last point in previous path has to be stored for this purpose.
+3. GetFrenet and GetXY is just a high level approximation, given x, y, after GetFrenet and then GetXY, the value will be completely different, so certain logic can not be used.
+
+
+
 ## Tips
 
 A really helpful resource for doing this project and creating smooth trajectories was using http://kluge.in-chemnitz.de/opensource/spline/, the spline function is in a single hearder file is really easy to use.
