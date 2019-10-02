@@ -75,6 +75,7 @@ If in left lane, there is no car within certain range both before and after curr
 If in right lane, there is no car within certain range both before and after current car's longitudinal postion, then right clear.
 
 The behavior planning then works as follows:
+
 	if (front_clear)
 	{
 		tgt_spd = spd_limit;
@@ -95,6 +96,8 @@ The behavior planning then works as follows:
 		tgt_spd = spd_limit;
 		tgt_lane = cur_lane+1;
 	}
+
+
    
 ## Trajectory Calculation
 
